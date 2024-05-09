@@ -5,8 +5,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/http/cookiejar"
+	"net/url"
 	"strings"
 	"time"
 
@@ -63,6 +65,20 @@ func initDownloading() error {
 		return err
 	}
 
+	if config.ProxyUsername != "" && config.ProxyPassword != "" && config.ProxyHost != "" {
+		proxyString := fmt.Sprintf("http://%s:%s@%s", config.ProxyUsername, config.ProxyPassword, config.ProxyHost)
+		proxyURL, err := url.Parse(proxyString)
+		if err != nil {
+			return fmt.Errorf("invalid proxy URL: %s", err)
+		}
+		transport.Proxy = http.ProxyURL(proxyURL)
+
+		log.Printf("Proxy configured with host: %s", config.ProxyHost)
+	} else {
+		transport.Proxy = http.ProxyFromEnvironment
+		log.Println("Falling back to environment proxy settings")
+	}
+
 	registerProtocol := func(scheme string, rt http.RoundTripper) {
 		transport.RegisterProtocol(scheme, rt)
 		enabledSchemes[scheme] = struct{}{}
@@ -71,45 +87,40 @@ func initDownloading() error {
 	if config.LocalFileSystemRoot != "" {
 		registerProtocol("local", fsTransport.New())
 	}
-
 	if config.S3Enabled {
-		if t, err := s3Transport.New(); err != nil {
+		t, err := s3Transport.New()
+		if err != nil {
 			return err
-		} else {
-			registerProtocol("s3", t)
 		}
+		registerProtocol("s3", t)
 	}
-
 	if config.GCSEnabled {
-		if t, err := gcsTransport.New(); err != nil {
+		t, err := gcsTransport.New()
+		if err != nil {
 			return err
-		} else {
-			registerProtocol("gs", t)
 		}
+		registerProtocol("gs", t)
 	}
-
 	if config.ABSEnabled {
-		if t, err := azureTransport.New(); err != nil {
+		t, err := azureTransport.New()
+		if err != nil {
 			return err
-		} else {
-			registerProtocol("abs", t)
 		}
+		registerProtocol("abs", t)
 	}
-
 	if config.SwiftEnabled {
-		if t, err := swiftTransport.New(); err != nil {
+		t, err := swiftTransport.New()
+		if err != nil {
 			return err
-		} else {
-			registerProtocol("swift", t)
 		}
+		registerProtocol("swift", t)
 	}
 
 	downloadClient = &http.Client{
 		Transport: transport,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			redirects := len(via)
-			if redirects >= config.MaxRedirects {
-				return fmt.Errorf("stopped after %d redirects", redirects)
+			if len(via) >= config.MaxRedirects {
+				return fmt.Errorf("stopped after %d redirects", len(via))
 			}
 			return nil
 		},

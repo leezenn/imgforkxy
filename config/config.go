@@ -203,6 +203,12 @@ var (
 	presetsPath string
 )
 
+var (
+	ProxyUsername string
+	ProxyPassword string
+	ProxyHost     string
+)
+
 func init() {
 	Reset()
 
@@ -501,6 +507,10 @@ func Configure() error {
 	configurators.String(&AllowOrigin, "IMGPROXY_ALLOW_ORIGIN")
 
 	configurators.String(&UserAgent, "IMGPROXY_USER_AGENT")
+
+	configurators.String(&ProxyUsername, "IMGPROXY_PROXY_USERNAME")
+	configurators.String(&ProxyPassword, "IMGPROXY_PROXY_PASSWORD")
+	configurators.String(&ProxyHost, "IMGPROXY_PROXY_HOST")
 
 	configurators.Bool(&IgnoreSslVerification, "IMGPROXY_IGNORE_SSL_VERIFICATION")
 	configurators.Bool(&DevelopmentErrorsMode, "IMGPROXY_DEVELOPMENT_ERRORS_MODE")
